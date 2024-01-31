@@ -1051,9 +1051,6 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 		return nil, err
 	}
 
-	srvrLog.Debugf("Sweeper batch window duration: %v",
-		cfg.Sweeper.BatchWindowDuration)
-
 	sweeperStore, err := sweep.NewSweeperStore(
 		dbs.ChanStateDB, s.cfg.ActiveNetParams.GenesisHash,
 	)
@@ -1072,7 +1069,6 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 		GenSweepScript:   newSweepPkScriptGen(cc.Wallet),
 		Signer:           cc.Wallet.Cfg.Signer,
 		Wallet:           newSweeperWallet(cc.Wallet),
-		TickerDuration:   cfg.Sweeper.BatchWindowDuration,
 		Mempool:          cc.MempoolNotifier,
 		Notifier:         cc.ChainNotifier,
 		Store:            sweeperStore,
