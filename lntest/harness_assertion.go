@@ -2572,3 +2572,20 @@ func (h *HarnessTest) MineClosingTx(cp *lnrpc.ChannelPoint,
 
 	return closeTx
 }
+
+// AssertNumPendingSweeps asserts the number of pending sweeps for the given
+// node.
+func (h *HarnessTest) AssertNumPendingSweeps(hn *node.HarnessNode, n int) {
+	err := wait.NoError(func() error {
+		resp := hn.RPC.PendingSweeps()
+		num := len(resp.PendingSweeps)
+
+		if num == n {
+			return nil
+		}
+
+		return fmt.Errorf("want %d , got %d", n, num)
+	}, DefaultTimeout)
+
+	require.NoErrorf(h, err, "%s: check pending sweeps timeout", hn.Name())
+}
