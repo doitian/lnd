@@ -125,6 +125,7 @@ const (
 	amtPaidType         tlv.Type = 13
 	hodlInvoiceType     tlv.Type = 14
 	invoiceAmpStateType tlv.Type = 15
+	origPayReqType      tlv.Type = 16
 
 	// A set of tlv type definitions used to serialize the invoice AMP
 	// state along-side the main invoice body.
@@ -1240,6 +1241,8 @@ func serializeInvoice(w io.Writer, i *invpkg.Invoice) error {
 			ampRecordSize(&i.AMPState),
 			ampStateEncoder, ampStateDecoder,
 		),
+
+		tlv.MakePrimitiveRecord(origPayReqType, &i.OriginalPaymentRequest),
 	)
 	if err != nil {
 		return err
@@ -1633,6 +1636,8 @@ func deserializeInvoice(r io.Reader) (invpkg.Invoice, error) {
 			invoiceAmpStateType, &i.AMPState, nil,
 			ampStateEncoder, ampStateDecoder,
 		),
+
+		tlv.MakePrimitiveRecord(origPayReqType, &i.OriginalPaymentRequest),
 	)
 	if err != nil {
 		return i, err

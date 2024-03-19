@@ -419,6 +419,9 @@ type Invoice struct {
 	// HodlInvoice indicates whether the invoice should be held in the
 	// Accepted state or be settled right away.
 	HodlInvoice bool
+
+	// The original payment request behind the proxy invoice.
+	OriginalPaymentRequest []byte
 }
 
 // HTLCSet returns the set of HTLCs belonging to setID and in the provided

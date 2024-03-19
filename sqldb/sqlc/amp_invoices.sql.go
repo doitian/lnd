@@ -138,7 +138,7 @@ SELECT
     a.set_id, 
     a.settle_index as amp_settle_index, 
     a.settled_at as amp_settled_at,
-    i.id, i.hash, i.preimage, i.settle_index, i.settled_at, i.memo, i.amount_msat, i.cltv_delta, i.expiry, i.payment_addr, i.payment_request, i.payment_request_hash, i.state, i.amount_paid_msat, i.is_amp, i.is_hodl, i.is_keysend, i.created_at
+    i.id, i.hash, i.preimage, i.settle_index, i.settled_at, i.memo, i.amount_msat, i.cltv_delta, i.expiry, i.payment_addr, i.payment_request, i.payment_request_hash, i.state, i.amount_paid_msat, i.is_amp, i.is_hodl, i.is_keysend, i.created_at, i.original_payment_request
 FROM amp_sub_invoices a
 INNER JOIN invoices i ON a.invoice_id = i.id
 WHERE (
@@ -156,27 +156,28 @@ type FetchSettledAMPSubInvoicesParams struct {
 }
 
 type FetchSettledAMPSubInvoicesRow struct {
-	SetID              []byte
-	AmpSettleIndex     sql.NullInt64
-	AmpSettledAt       sql.NullTime
-	ID                 int64
-	Hash               []byte
-	Preimage           []byte
-	SettleIndex        sql.NullInt64
-	SettledAt          sql.NullTime
-	Memo               sql.NullString
-	AmountMsat         int64
-	CltvDelta          sql.NullInt32
-	Expiry             int32
-	PaymentAddr        []byte
-	PaymentRequest     sql.NullString
-	PaymentRequestHash []byte
-	State              int16
-	AmountPaidMsat     int64
-	IsAmp              bool
-	IsHodl             bool
-	IsKeysend          bool
-	CreatedAt          time.Time
+	SetID                  []byte
+	AmpSettleIndex         sql.NullInt64
+	AmpSettledAt           sql.NullTime
+	ID                     int64
+	Hash                   []byte
+	Preimage               []byte
+	SettleIndex            sql.NullInt64
+	SettledAt              sql.NullTime
+	Memo                   sql.NullString
+	AmountMsat             int64
+	CltvDelta              sql.NullInt32
+	Expiry                 int32
+	PaymentAddr            []byte
+	PaymentRequest         sql.NullString
+	PaymentRequestHash     []byte
+	State                  int16
+	AmountPaidMsat         int64
+	IsAmp                  bool
+	IsHodl                 bool
+	IsKeysend              bool
+	CreatedAt              time.Time
+	OriginalPaymentRequest sql.NullString
 }
 
 func (q *Queries) FetchSettledAMPSubInvoices(ctx context.Context, arg FetchSettledAMPSubInvoicesParams) ([]FetchSettledAMPSubInvoicesRow, error) {
@@ -210,6 +211,7 @@ func (q *Queries) FetchSettledAMPSubInvoices(ctx context.Context, arg FetchSettl
 			&i.IsHodl,
 			&i.IsKeysend,
 			&i.CreatedAt,
+			&i.OriginalPaymentRequest,
 		); err != nil {
 			return nil, err
 		}
