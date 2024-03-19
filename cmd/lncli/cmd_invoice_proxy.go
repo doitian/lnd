@@ -38,7 +38,7 @@ func addInvoiceProxy(ctx *cli.Context) error {
 	client, cleanUp := getClient(ctx)
 	defer cleanUp()
 
-	resp, err := client.DecodePayReq(ctxc, req)
+	resp, err := client.AddInvoiceProxy(ctxc, req)
 	if err != nil {
 		return err
 	}

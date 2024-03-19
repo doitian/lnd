@@ -401,6 +401,10 @@ func MainRPCServerPermissions() map[string][]bakery.Op {
 			Entity: "invoices",
 			Action: "write",
 		}},
+		"/lnrpc.Lightning/AddInvoiceProxy": {{
+			Entity: "invoices",
+			Action: "write",
+		}},
 		"/lnrpc.Lightning/LookupInvoice": {{
 			Entity: "invoices",
 			Action: "read",
@@ -6815,6 +6819,84 @@ func (r *rpcServer) DecodePayReq(ctx context.Context,
 		RouteHints:      routeHints,
 		PaymentAddr:     paymentAddr,
 		Features:        invoicesrpc.CreateRPCFeatures(payReq.Features),
+	}, nil
+}
+
+// AddInvoiceProxy takes an encoded payment request string and attempts to decode
+// it, returning a proxy invoice to collect the amount required to fullfil the
+// request.
+func (r *rpcServer) AddInvoiceProxy(ctx context.Context, req *lnrpc.PayReqString) (*lnrpc.AddInvoiceResponse, error) {
+	payReq, err := r.DecodePayReq(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	rHashBytes, err := hex.DecodeString(payReq.PaymentHash)
+	if err != nil {
+		return nil, err
+	}
+	rHash, err := lntypes.MakeHash(rHashBytes)
+	if err != nil {
+		return nil, err
+	}
+	descriptionHash, err := hex.DecodeString(payReq.DescriptionHash)
+	if err != nil {
+		return nil, err
+	}
+
+	rpcsLog.Infof("create proxy invoice for rhash: %v", payReq.PaymentHash)
+
+	defaultDelta := r.cfg.Bitcoin.TimeLockDelta
+	addInvoiceCfg := &invoicesrpc.AddInvoiceConfig{
+		AddInvoice:        r.server.invoices.AddInvoice,
+		IsChannelActive:   r.server.htlcSwitch.HasActiveLink,
+		ChainParams:       r.cfg.ActiveNetParams.Params,
+		NodeSigner:        r.server.nodeSigner,
+		DefaultCLTVExpiry: defaultDelta,
+		ChanDB:            r.server.chanStateDB,
+		Graph:             r.server.graphDB,
+		GenInvoiceFeatures: func() *lnwire.FeatureVector {
+			return r.server.featureMgr.Get(feature.SetInvoice)
+		},
+		GenAmpInvoiceFeatures: func() *lnwire.FeatureVector {
+			return r.server.featureMgr.Get(feature.SetInvoiceAmp)
+		},
+		GetAlias: r.server.aliasMgr.GetPeerAlias,
+	}
+
+	value, err := lnrpc.UnmarshallAmt(0, payReq.NumMsat)
+	if err != nil {
+		return nil, err
+	}
+	addInvoiceData := &invoicesrpc.AddInvoiceData{
+		Memo: payReq.Description,
+		Hash: &rHash,
+		// Uually, the agent should create a proxy invoice with a
+		// larger value as the transaction fee.
+		Value:           value,
+		DescriptionHash: descriptionHash,
+		Expiry:          payReq.Expiry,
+		// The agent does not hold the preimage, it must leave enough expiry time to fulfill the
+		// original payment request to get the preimage.
+		CltvExpiry: uint64(payReq.CltvExpiry) + 36,
+		// Save it as a hodl invoice which does not require preimage
+		HodlInvoice: true,
+		Private:     false,
+		Amp:         false,
+	}
+
+	hash, dbInvoice, err := invoicesrpc.AddInvoice(
+		ctx, addInvoiceCfg, addInvoiceData,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &lnrpc.AddInvoiceResponse{
+		AddIndex:       dbInvoice.AddIndex,
+		PaymentRequest: string(dbInvoice.PaymentRequest),
+		RHash:          hash[:],
+		PaymentAddr:    dbInvoice.Terms.PaymentAddr[:],
 	}, nil
 }
 
