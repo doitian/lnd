@@ -209,8 +209,8 @@ func getClientConn(ctx *cli.Context, skipMacaroons bool) *grpc.ClientConn {
 	if ctx.GlobalIsSet("socksproxy") {
 		socksProxy := ctx.GlobalString("socksproxy")
 		torDialer := func(_ context.Context, addr string) (net.Conn,
-			error) {
-
+			error,
+		) {
 			return tor.Dial(
 				addr, socksProxy, false, false,
 				tor.DefaultConnTimeout,
@@ -238,12 +238,12 @@ func getClientConn(ctx *cli.Context, skipMacaroons bool) *grpc.ClientConn {
 // appends any key-value metadata strings to the outgoing context of a grpc
 // unary call.
 func addMetadataUnaryInterceptor(
-	md map[string]string) grpc.UnaryClientInterceptor {
-
+	md map[string]string,
+) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{},
 		cc *grpc.ClientConn, invoker grpc.UnaryInvoker,
-		opts ...grpc.CallOption) error {
-
+		opts ...grpc.CallOption,
+	) error {
 		outCtx := contextWithMetadata(ctx, md)
 		return invoker(outCtx, method, req, reply, cc, opts...)
 	}
@@ -253,12 +253,12 @@ func addMetadataUnaryInterceptor(
 // appends any key-value metadata strings to the outgoing context of a grpc
 // stream call.
 func addMetaDataStreamInterceptor(
-	md map[string]string) grpc.StreamClientInterceptor {
-
+	md map[string]string,
+) grpc.StreamClientInterceptor {
 	return func(ctx context.Context, desc *grpc.StreamDesc,
 		cc *grpc.ClientConn, method string, streamer grpc.Streamer,
-		opts ...grpc.CallOption) (grpc.ClientStream, error) {
-
+		opts ...grpc.CallOption,
+	) (grpc.ClientStream, error) {
 		outCtx := contextWithMetadata(ctx, md)
 		return streamer(outCtx, desc, cc, method, opts...)
 	}
@@ -267,8 +267,8 @@ func addMetaDataStreamInterceptor(
 // contextWithMetaData appends the given metadata key-value pairs to the given
 // context.
 func contextWithMetadata(ctx context.Context,
-	md map[string]string) context.Context {
-
+	md map[string]string,
+) context.Context {
 	kvPairs := make([]string, 0, 2*len(md))
 	for k, v := range md {
 		kvPairs = append(kvPairs, k, v)
