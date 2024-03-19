@@ -89,6 +89,9 @@ http:
     - selector: lnrpc.Lightning.AddInvoice
       post: "/v1/invoices"
       body: "*"
+    - selector: lnrpc.Lightning.AddInvoiceProxy
+      post: "/v1/invoices/proxy"
+      body: "*"
     - selector: lnrpc.Lightning.ListInvoices
       get: "/v1/invoices"
     - selector: lnrpc.Lightning.LookupInvoice

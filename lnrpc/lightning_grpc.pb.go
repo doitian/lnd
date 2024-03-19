@@ -243,6 +243,11 @@ type LightningClient interface {
 	// it, returning a full description of the conditions encoded within the
 	// payment request.
 	DecodePayReq(ctx context.Context, in *PayReqString, opts ...grpc.CallOption) (*PayReq, error)
+	// lncli: `addinvoiceproxy`
+	// AddInvoiceProxy takes an encoded payment request string and attempts to
+	// decode it, returning a proxy invoice to collect the amount required to
+	// fullfil the request.
+	AddInvoiceProxy(ctx context.Context, in *PayReqString, opts ...grpc.CallOption) (*AddInvoiceResponse, error)
 	// lncli: `listpayments`
 	// ListPayments returns a list of all outgoing payments.
 	ListPayments(ctx context.Context, in *ListPaymentsRequest, opts ...grpc.CallOption) (*ListPaymentsResponse, error)
@@ -974,6 +979,15 @@ func (c *lightningClient) DecodePayReq(ctx context.Context, in *PayReqString, op
 	return out, nil
 }
 
+func (c *lightningClient) AddInvoiceProxy(ctx context.Context, in *PayReqString, opts ...grpc.CallOption) (*AddInvoiceResponse, error) {
+	out := new(AddInvoiceResponse)
+	err := c.cc.Invoke(ctx, "/lnrpc.Lightning/AddInvoiceProxy", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *lightningClient) ListPayments(ctx context.Context, in *ListPaymentsRequest, opts ...grpc.CallOption) (*ListPaymentsResponse, error) {
 	out := new(ListPaymentsResponse)
 	err := c.cc.Invoke(ctx, "/lnrpc.Lightning/ListPayments", in, out, opts...)
@@ -1564,6 +1578,11 @@ type LightningServer interface {
 	// it, returning a full description of the conditions encoded within the
 	// payment request.
 	DecodePayReq(context.Context, *PayReqString) (*PayReq, error)
+	// lncli: `addinvoiceproxy`
+	// AddInvoiceProxy takes an encoded payment request string and attempts to
+	// decode it, returning a proxy invoice to collect the amount required to
+	// fullfil the request.
+	AddInvoiceProxy(context.Context, *PayReqString) (*AddInvoiceResponse, error)
 	// lncli: `listpayments`
 	// ListPayments returns a list of all outgoing payments.
 	ListPayments(context.Context, *ListPaymentsRequest) (*ListPaymentsResponse, error)
@@ -1857,6 +1876,9 @@ func (UnimplementedLightningServer) SubscribeInvoices(*InvoiceSubscription, Ligh
 }
 func (UnimplementedLightningServer) DecodePayReq(context.Context, *PayReqString) (*PayReq, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DecodePayReq not implemented")
+}
+func (UnimplementedLightningServer) AddInvoiceProxy(context.Context, *PayReqString) (*AddInvoiceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddInvoiceProxy not implemented")
 }
 func (UnimplementedLightningServer) ListPayments(context.Context, *ListPaymentsRequest) (*ListPaymentsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListPayments not implemented")
@@ -2687,6 +2709,24 @@ func _Lightning_DecodePayReq_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Lightning_AddInvoiceProxy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PayReqString)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LightningServer).AddInvoiceProxy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lnrpc.Lightning/AddInvoiceProxy",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LightningServer).AddInvoiceProxy(ctx, req.(*PayReqString))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Lightning_ListPayments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListPaymentsRequest)
 	if err := dec(in); err != nil {
@@ -3366,6 +3406,10 @@ var Lightning_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DecodePayReq",
 			Handler:    _Lightning_DecodePayReq_Handler,
+		},
+		{
+			MethodName: "AddInvoiceProxy",
+			Handler:    _Lightning_AddInvoiceProxy_Handler,
 		},
 		{
 			MethodName: "ListPayments",

@@ -343,6 +343,13 @@ service Lightning {
     */
     rpc DecodePayReq (PayReqString) returns (PayReq);
 
+    /* lncli: `addinvoiceproxy`
+    AddInvoiceProxy takes an encoded payment request string and attempts to
+    decode it, returning a proxy invoice to collect the amount required to
+    fullfil the request.
+    */
+    rpc AddInvoiceProxy (PayReqString) returns (AddInvoiceResponse);
+
     /* lncli: `listpayments`
     ListPayments returns a list of all outgoing payments.
     */
