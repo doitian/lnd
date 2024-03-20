@@ -137,6 +137,9 @@ type AddInvoiceData struct {
 	// RouteHints are optional route hints that can each be individually
 	// used to assist in reaching the invoice's destination.
 	RouteHints [][]zpay32.HopHint
+
+	// The original payment request behind the proxy invoice.
+	OriginalPaymentRequest string
 }
 
 // paymentHashAndPreimage returns the payment hash and preimage for this invoice
@@ -469,7 +472,8 @@ func AddInvoice(ctx context.Context, cfg *AddInvoiceConfig,
 			PaymentAddr:     paymentAddr,
 			Features:        invoiceFeatures,
 		},
-		HodlInvoice: invoice.HodlInvoice,
+		HodlInvoice:            invoice.HodlInvoice,
+		OriginalPaymentRequest: []byte(invoice.OriginalPaymentRequest),
 	}
 
 	log.Tracef("[addinvoice] adding new invoice %v",

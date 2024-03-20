@@ -6880,9 +6880,10 @@ func (r *rpcServer) AddInvoiceProxy(ctx context.Context, req *lnrpc.PayReqString
 		// original payment request to get the preimage.
 		CltvExpiry: uint64(payReq.CltvExpiry) + 36,
 		// Save it as a hodl invoice which does not require preimage
-		HodlInvoice: true,
-		Private:     false,
-		Amp:         false,
+		HodlInvoice:            true,
+		Private:                false,
+		Amp:                    false,
+		OriginalPaymentRequest: req.PayReq,
 	}
 
 	hash, dbInvoice, err := invoicesrpc.AddInvoice(
