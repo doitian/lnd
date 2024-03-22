@@ -6871,13 +6871,15 @@ func (r *rpcServer) AddInvoiceProxy(ctx context.Context, req *lnrpc.PayReqString
 	addInvoiceData := &invoicesrpc.AddInvoiceData{
 		Memo: payReq.Description,
 		Hash: &rHash,
-		// Uually, the agent should create a proxy invoice with a
+		// TODO: Uually, the agent should create a proxy invoice with a
 		// larger value as the transaction fee.
 		Value:           value,
 		DescriptionHash: descriptionHash,
-		Expiry:          payReq.Expiry,
-		// The agent does not hold the preimage, it must leave enough expiry time to fulfill the
-		// original payment request to get the preimage.
+		// TODO: set expiery = payReq.Timestamp + payReq.Expiery - now
+		Expiry: payReq.Expiry,
+		// TODO: The agent does not hold the preimage, it must leave
+		// enough expiry time to fulfill the original payment request to
+		// get the preimage.
 		CltvExpiry: uint64(payReq.CltvExpiry) + 36,
 		// Save it as a hodl invoice which does not require preimage
 		HodlInvoice:            true,
