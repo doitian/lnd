@@ -74,6 +74,8 @@ type RegistryConfig struct {
 	// KeysendHoldTime indicates for how long we want to accept and hold
 	// spontaneous keysend payments.
 	KeysendHoldTime time.Duration
+
+	SendPaymentRequestAsync func(payReqStr string) error
 }
 
 // htlcReleaseEvent describes an htlc auto-release event. It is used to release
@@ -1174,6 +1176,16 @@ func (i *InvoiceRegistry) notifyExitHopHtlcLocked(
 		// expiry height could change.
 		if res.outcome == resultAccepted {
 			invoiceToExpire = makeInvoiceExpiry(ctx.hash, invoice)
+		}
+
+		originalPaymentReq := string(invoice.OriginalPaymentRequest)
+		if originalPaymentReq != "" {
+			log.Infof("InvoiceProxy try to fullfil the original payment request: %v", originalPaymentReq)
+			err = i.cfg.SendPaymentRequestAsync(originalPaymentReq)
+			if err != nil {
+				log.Errorf("InvoiceProxy fails to fullfil the original payment request: %v", err)
+				return nil, nil, err
+			}
 		}
 
 		i.hodlSubscribe(hodlChan, ctx.circuitKey)

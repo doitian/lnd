@@ -81,6 +81,11 @@ func (m *mockPreimageCache) SubscribeUpdates(
 	return nil, nil
 }
 
+func (m *mockPreimageCache) SubscribeWitness() (*contractcourt.WitnessSubscription, error) {
+
+	return nil, nil
+}
+
 type mockFeeEstimator struct {
 	byteFeeIn chan chainfee.SatPerKWeight
 	relayFee  chan chainfee.SatPerKWeight

@@ -230,6 +230,10 @@ func (i *InvoiceStore) AddInvoice(ctx context.Context,
 			params.PaymentAddr = newInvoice.Terms.PaymentAddr[:]
 		}
 
+		if newInvoice.OriginalPaymentRequest != nil {
+			params.OriginalPaymentRequest = sqlStr(string(newInvoice.OriginalPaymentRequest))
+		}
+
 		var err error
 		invoiceID, err = db.InsertInvoice(ctx, params)
 		if err != nil {
@@ -1527,12 +1531,13 @@ func unmarshalInvoice(row sqlc.Invoice) (*lntypes.Hash, *invpkg.Invoice,
 	error) {
 
 	var (
-		settleIndex    int64
-		settledAt      time.Time
-		memo           []byte
-		paymentRequest []byte
-		preimage       *lntypes.Preimage
-		paymentAddr    [32]byte
+		settleIndex            int64
+		settledAt              time.Time
+		memo                   []byte
+		paymentRequest         []byte
+		originalPaymentRequest []byte
+		preimage               *lntypes.Preimage
+		paymentAddr            [32]byte
 	)
 
 	hash, err := lntypes.MakeHash(row.Hash)
@@ -1558,6 +1563,11 @@ func unmarshalInvoice(row sqlc.Invoice) (*lntypes.Hash, *invpkg.Invoice,
 	} else {
 		paymentRequest = []byte{}
 	}
+	if row.OriginalPaymentRequest.Valid {
+		originalPaymentRequest = []byte(row.OriginalPaymentRequest.String)
+	} else {
+		originalPaymentRequest = []byte{}
+	}
 
 	// We may not have the preimage if this a hodl invoice.
 	if row.Preimage != nil {
@@ -1573,11 +1583,12 @@ func unmarshalInvoice(row sqlc.Invoice) (*lntypes.Hash, *invpkg.Invoice,
 	}
 
 	invoice := &invpkg.Invoice{
-		SettleIndex:    uint64(settleIndex),
-		SettleDate:     settledAt,
-		Memo:           memo,
-		PaymentRequest: paymentRequest,
-		CreationDate:   row.CreatedAt.Local(),
+		SettleIndex:            uint64(settleIndex),
+		SettleDate:             settledAt,
+		Memo:                   memo,
+		PaymentRequest:         paymentRequest,
+		OriginalPaymentRequest: originalPaymentRequest,
+		CreationDate:           row.CreatedAt.Local(),
 		Terms: invpkg.ContractTerm{
 			FinalCltvDelta:  cltvDelta,
 			Expiry:          time.Duration(row.Expiry),

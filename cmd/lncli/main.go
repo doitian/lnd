@@ -509,6 +509,7 @@ func main() {
 		listAliasesCommand,
 		estimateRouteFeeCommand,
 		generateManPageCommand,
+		addInvoiceProxyCommand,
 	}
 
 	// Add any extra commands determined by build flags.

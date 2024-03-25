@@ -29,24 +29,25 @@ type AmpSubInvoiceHtlc struct {
 }
 
 type Invoice struct {
-	ID                 int64
-	Hash               []byte
-	Preimage           []byte
-	SettleIndex        sql.NullInt64
-	SettledAt          sql.NullTime
-	Memo               sql.NullString
-	AmountMsat         int64
-	CltvDelta          sql.NullInt32
-	Expiry             int32
-	PaymentAddr        []byte
-	PaymentRequest     sql.NullString
-	PaymentRequestHash []byte
-	State              int16
-	AmountPaidMsat     int64
-	IsAmp              bool
-	IsHodl             bool
-	IsKeysend          bool
-	CreatedAt          time.Time
+	ID                     int64
+	Hash                   []byte
+	Preimage               []byte
+	SettleIndex            sql.NullInt64
+	SettledAt              sql.NullTime
+	Memo                   sql.NullString
+	AmountMsat             int64
+	CltvDelta              sql.NullInt32
+	Expiry                 int32
+	PaymentAddr            []byte
+	PaymentRequest         sql.NullString
+	PaymentRequestHash     []byte
+	State                  int16
+	AmountPaidMsat         int64
+	IsAmp                  bool
+	IsHodl                 bool
+	IsKeysend              bool
+	CreatedAt              time.Time
+	OriginalPaymentRequest sql.NullString
 }
 
 type InvoiceEvent struct {

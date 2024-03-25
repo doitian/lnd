@@ -17,8 +17,8 @@ import (
 // is no payment request present, a dummy request will be returned. This can
 // happen with just-in-time inserted keysend invoices.
 func decodePayReq(invoice *invoices.Invoice,
-	activeNetParams *chaincfg.Params) (*zpay32.Invoice, error) {
-
+	activeNetParams *chaincfg.Params,
+) (*zpay32.Invoice, error) {
 	paymentRequest := string(invoice.PaymentRequest)
 	if paymentRequest == "" {
 		preimage := invoice.Terms.PaymentPreimage
@@ -42,8 +42,8 @@ func decodePayReq(invoice *invoices.Invoice,
 
 // CreateRPCInvoice creates an *lnrpc.Invoice from the *invoices.Invoice.
 func CreateRPCInvoice(invoice *invoices.Invoice,
-	activeNetParams *chaincfg.Params) (*lnrpc.Invoice, error) {
-
+	activeNetParams *chaincfg.Params,
+) (*lnrpc.Invoice, error) {
 	decoded, err := decodePayReq(invoice, activeNetParams)
 	if err != nil {
 		return nil, err
@@ -151,31 +151,32 @@ func CreateRPCInvoice(invoice *invoices.Invoice,
 	}
 
 	rpcInvoice := &lnrpc.Invoice{
-		Memo:            string(invoice.Memo),
-		RHash:           rHash,
-		Value:           int64(satAmt),
-		ValueMsat:       int64(invoice.Terms.Value),
-		CreationDate:    invoice.CreationDate.Unix(),
-		SettleDate:      settleDate,
-		Settled:         isSettled,
-		PaymentRequest:  string(invoice.PaymentRequest),
-		DescriptionHash: descHash,
-		Expiry:          int64(invoice.Terms.Expiry.Seconds()),
-		CltvExpiry:      uint64(invoice.Terms.FinalCltvDelta),
-		FallbackAddr:    fallbackAddr,
-		RouteHints:      routeHints,
-		AddIndex:        invoice.AddIndex,
-		Private:         len(routeHints) > 0,
-		SettleIndex:     invoice.SettleIndex,
-		AmtPaidSat:      int64(satAmtPaid),
-		AmtPaidMsat:     int64(invoice.AmtPaid),
-		AmtPaid:         int64(invoice.AmtPaid),
-		State:           state,
-		Htlcs:           rpcHtlcs,
-		Features:        CreateRPCFeatures(invoice.Terms.Features),
-		IsKeysend:       invoice.IsKeysend(),
-		PaymentAddr:     invoice.Terms.PaymentAddr[:],
-		IsAmp:           invoice.IsAMP(),
+		Memo:                   string(invoice.Memo),
+		RHash:                  rHash,
+		Value:                  int64(satAmt),
+		ValueMsat:              int64(invoice.Terms.Value),
+		CreationDate:           invoice.CreationDate.Unix(),
+		SettleDate:             settleDate,
+		Settled:                isSettled,
+		PaymentRequest:         string(invoice.PaymentRequest),
+		DescriptionHash:        descHash,
+		Expiry:                 int64(invoice.Terms.Expiry.Seconds()),
+		CltvExpiry:             uint64(invoice.Terms.FinalCltvDelta),
+		FallbackAddr:           fallbackAddr,
+		RouteHints:             routeHints,
+		AddIndex:               invoice.AddIndex,
+		Private:                len(routeHints) > 0,
+		SettleIndex:            invoice.SettleIndex,
+		AmtPaidSat:             int64(satAmtPaid),
+		AmtPaidMsat:            int64(invoice.AmtPaid),
+		AmtPaid:                int64(invoice.AmtPaid),
+		State:                  state,
+		Htlcs:                  rpcHtlcs,
+		Features:               CreateRPCFeatures(invoice.Terms.Features),
+		IsKeysend:              invoice.IsKeysend(),
+		PaymentAddr:            invoice.Terms.PaymentAddr[:],
+		IsAmp:                  invoice.IsAMP(),
+		OriginalPaymentRequest: string(invoice.OriginalPaymentRequest),
 	}
 
 	rpcInvoice.AmpInvoiceState = make(map[string]*lnrpc.AMPInvoiceState)
