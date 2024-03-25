@@ -73,6 +73,7 @@ import (
 	"github.com/lightningnetwork/lnd/watchtower/wtclient"
 	"github.com/lightningnetwork/lnd/watchtower/wtpolicy"
 	"github.com/lightningnetwork/lnd/watchtower/wtserver"
+	"github.com/lightningnetwork/lnd/zpay32"
 )
 
 const (
@@ -549,17 +550,6 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 		return nil, err
 	}
 
-	registryConfig := invoices.RegistryConfig{
-		FinalCltvRejectDelta:        lncfg.DefaultFinalCltvRejectDelta,
-		HtlcHoldDuration:            invoices.DefaultHtlcHoldDuration,
-		Clock:                       clock.NewDefaultClock(),
-		AcceptKeySend:               cfg.AcceptKeySend,
-		AcceptAMP:                   cfg.AcceptAMP,
-		GcCanceledInvoicesOnStartup: cfg.GcCanceledInvoicesOnStartup,
-		GcCanceledInvoicesOnTheFly:  cfg.GcCanceledInvoicesOnTheFly,
-		KeysendHoldTime:             cfg.KeysendHoldTime,
-	}
-
 	s := &server{
 		cfg:            cfg,
 		graphDB:        dbs.GraphDB.ChannelGraph(),
@@ -611,6 +601,18 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 
 		featureMgr: featureMgr,
 		quit:       make(chan struct{}),
+	}
+
+	registryConfig := invoices.RegistryConfig{
+		FinalCltvRejectDelta:        lncfg.DefaultFinalCltvRejectDelta,
+		HtlcHoldDuration:            invoices.DefaultHtlcHoldDuration,
+		Clock:                       clock.NewDefaultClock(),
+		AcceptKeySend:               cfg.AcceptKeySend,
+		AcceptAMP:                   cfg.AcceptAMP,
+		GcCanceledInvoicesOnStartup: cfg.GcCanceledInvoicesOnStartup,
+		GcCanceledInvoicesOnTheFly:  cfg.GcCanceledInvoicesOnTheFly,
+		KeysendHoldTime:             cfg.KeysendHoldTime,
+		SendPaymentRequestAsync:     s.sendPaymentRequestAsync,
 	}
 
 	currentHash, currentHeight, err := s.cc.ChainIO.GetBestBlock()
@@ -4716,4 +4718,110 @@ func shouldPeerBootstrap(cfg *Config) bool {
 	// TODO(yy): remove the check on simnet/regtest such that the itest is
 	// covering the bootstrapping process.
 	return !cfg.NoNetBootstrap && !isDevNetwork
+}
+
+func (s *server) sendPaymentRequestAsync(payReqStr string) error {
+	payReq, err := zpay32.Decode(payReqStr, s.cfg.ActiveNetParams.Params)
+	if err != nil {
+		return err
+	}
+
+	expiry := payReq.Expiry()
+	validUntil := payReq.Timestamp.Add(expiry)
+	if time.Now().After(validUntil) {
+		return fmt.Errorf("invoice expired. Valid until %v", validUntil)
+	}
+
+	payIntent := &routing.LightningPayment{}
+
+	// Must set CtlvLimit to a non-zero value
+	payIntent.CltvLimit = s.cfg.MaxOutgoingCltvExpiry
+	payIntent.Amount = *payReq.MilliSat
+	// TODO: set fee limit to avoid lose money
+	// payIntent.FeeLimit = ?
+
+	if !payReq.Features.HasFeature(lnwire.MPPOptional) &&
+		!payReq.Features.HasFeature(lnwire.AMPOptional) {
+		payIntent.MaxParts = 1
+	}
+
+	payAddr := payReq.PaymentAddr
+	if payReq.Features.HasFeature(lnwire.AMPOptional) {
+		// Generate random SetID and root share.
+		var setID [32]byte
+		_, err = rand.Read(setID[:])
+		if err != nil {
+			return err
+		}
+
+		var rootShare [32]byte
+		_, err = rand.Read(rootShare[:])
+		if err != nil {
+			return err
+		}
+		err := payIntent.SetAMP(&routing.AMPOptions{
+			SetID:     setID,
+			RootShare: rootShare,
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		err = payIntent.SetPaymentHash(*payReq.PaymentHash)
+		if err != nil {
+			return err
+		}
+	}
+
+	destKey := payReq.Destination.SerializeCompressed()
+	copy(payIntent.Target[:], destKey)
+
+	payIntent.FinalCLTVDelta = uint16(payReq.MinFinalCLTVExpiry())
+	payIntent.RouteHints = append(
+		payIntent.RouteHints, payReq.RouteHints...,
+	)
+	payIntent.DestFeatures = payReq.Features
+	payIntent.PaymentAddr = payAddr
+	payIntent.PaymentRequest = []byte(payReqStr)
+	payIntent.Metadata = payReq.Metadata
+
+	// Do bounds checking with the block padding so the router isn't
+	// left with a zombie payment in case the user messes up.
+	err = routing.ValidateCLTVLimit(
+		payIntent.CltvLimit, payIntent.FinalCLTVDelta, true,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Init the payment in db.
+	paySession, shardTracker, err := s.chanRouter.PreparePayment(payIntent)
+	if err != nil {
+		return err
+	}
+
+	// Send the payment asynchronously.
+	s.chanRouter.SendPaymentAsync(payIntent, paySession, shardTracker)
+
+	// lnd has two places to notify new preimages.
+	// - WitnessBeacon is used to notify the preimage of the settled htlc.
+	// - InvoiceRegistry is used to notify the preimage sent via grpc SettleInvoice
+	//
+	// We need to subscribe to the WitnessBeacon to get the preimage of the settled htlc, then use it to settle the hodl invoice.
+	sub, err := s.witnessBeacon.SubscribeWitness()
+	if err != nil {
+		return err
+	}
+	go func() {
+		defer sub.CancelSubscription()
+		for {
+			preimage := <-sub.WitnessUpdates
+			if preimage.Hash() == *payReq.PaymentHash {
+				s.invoices.SettleHodlInvoice(context.Background(), preimage)
+				return
+			}
+		}
+	}()
+
+	return nil
 }

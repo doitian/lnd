@@ -118,6 +118,38 @@ func (p *preimageBeacon) SubscribeUpdates(
 	return sub, nil
 }
 
+func (p *preimageBeacon) SubscribeWitness() (*contractcourt.WitnessSubscription, error) {
+	p.Lock()
+	defer p.Unlock()
+
+	clientID := p.clientCounter
+	client := &preimageSubscriber{
+		updateChan: make(chan lntypes.Preimage, 10),
+		quit:       make(chan struct{}),
+	}
+
+	p.subscribers[p.clientCounter] = client
+
+	p.clientCounter++
+
+	srvrLog.Debugf("Creating new witness beacon subscriber, id=%v",
+		p.clientCounter)
+
+	sub := &contractcourt.WitnessSubscription{
+		WitnessUpdates: client.updateChan,
+		CancelSubscription: func() {
+			p.Lock()
+			defer p.Unlock()
+
+			delete(p.subscribers, clientID)
+
+			close(client.quit)
+		},
+	}
+
+	return sub, nil
+}
+
 // LookupPreImage attempts to lookup a preimage in the global cache.  True is
 // returned for the second argument if the preimage is found.
 func (p *preimageBeacon) LookupPreimage(
